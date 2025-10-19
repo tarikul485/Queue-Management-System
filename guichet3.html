@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Guichet 3</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #f8f9fa, #e9ecef);
+      margin: 0;
+      padding: 20px;
+      display: none;
+    }
+
+    .stats {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      background-color: #ffffffbb;
+      padding: 10px 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      font-size: 36px;
+      margin-bottom: 30px;
+      animation: fadeIn 1s ease-out;
+    }
+
+    #tokens {
+      max-width: 700px;
+      height: 70vh;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      overflow-y: auto;
+      padding-right: 10px;
+      scroll-behavior: smooth;
+      scrollbar-width: thin;
+    }
+
+    #tokens::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #tokens::-webkit-scrollbar-thumb {
+      background-color: #ccc;
+      border-radius: 8px;
+    }
+
+    .token-card {
+      background: linear-gradient(145deg, #ffffff, #f4f4f4);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+      font-size: 18px;
+      transition: transform 0.2s, background-color 0.3s;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    .token-card:hover {
+      transform: scale(1.02);
+    }
+
+    .called {
+      border-left: 6px solid #28a745;
+      background-color: #e9f7ef;
+    }
+
+    .served {
+      border-left: 6px solid #dc3545;
+      background-color: #fceaea;
+    }
+
+    button {
+      padding: 6px 10px;
+      margin-top: 10px;
+      border: none;
+      background-color: #3498db;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <h1>Guichet 3</h1>
+  <div class="stats" id="statsBox">
+    Loading stats...
+  </div>
+  <div id="tokens"></div>
+  <audio id="dingSound" src="assets/ding.mp3" preload="auto"></audio>
+
+  <script>
+    const room = 'Guichet 3';
+
+    function loadTokens() {
+      fetch('php/get_clients.php')
+        .then(res => res.json())
+        .then(data => {
+          const container = document.getElementById('tokens');
+          const statsBox = document.getElementById('statsBox');
+          container.innerHTML = '';
+
+          let total = 0, served = 0, waiting = 0;
+
+          data.forEach(client => {
+            if (client.room === room) {
+              total++;
+              if (client.status === 'served') served++;
+              if (client.status === 'waiting') waiting++;
+
+              const div = document.createElement('div');
+              div.classList.add('token-card');
+
+              if (client.status === 'called') div.classList.add('called');
+              if (client.status === 'served') div.classList.add('served');
+
+              div.innerHTML = `
+                <strong>Token:</strong> ${client.token}<br>
+                <strong>Name:</strong> ${client.name}<br>
+                <strong>Service:</strong> ${client.service}<br>
+                <button onclick="callToken('${client.token}')">Call</button>
+              `;
+              container.appendChild(div);
+            }
+          });
+
+          waiting = total - served - data.filter(c => c.room === room && c.status === 'called').length;
+          statsBox.innerHTML = `
+            👥 Total: <strong>${total}</strong><br>
+            
+            ⏳ Waiting: <strong>${waiting}</strong>
+          `;
+        });
+    }
+
+    function callToken(token) {
+      fetch('php/call_token.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, room })
+      }).then(() => {
+        document.getElementById('dingSound').play();
+        markPreviousTokenAsServed(token);
+        loadTokens();
+      });
+    }
+
+    function markPreviousTokenAsServed(currentToken) {
+      fetch('php/get_clients.php')
+        .then(res => res.json())
+        .then(data => {
+          data.forEach(client => {
+            if (client.room === room && client.status === 'called' && client.token !== currentToken) {
+              fetch('php/update_token.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: client.token, field: 'status', value: 'served' })
+              });
+            }
+          });
+        });
+    }
+
+    function checkPassword() {
+      const page = window.location.pathname.split('/').pop();
+      fetch(`../data/passwords.json?cache=${new Date().getTime()}`)
+        .then(res => res.json())
+        .then(data => {
+          const expectedPassword = data[page];
+          const userPassword = prompt("Enter the password for this page:");
+          if (userPassword === expectedPassword) {
+            document.body.style.display = 'block';
+          } else {
+            alert("Incorrect password. Access denied.");
+            window.location.href = 'index.html';
+          }
+        })
+        .catch(error => {
+          alert("Failed to load password. Check the console.");
+          console.error("Password fetch error:", error);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      checkPassword();
+      loadTokens();
+      setInterval(loadTokens, 5000);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Token Display</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #f9f9f9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .date-display {
+      width: 100%;
+      padding: 10px 20px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #333;
+      text-align: right;
+      box-sizing: border-box;
+      background-color: #e0f7fa;
+      border-bottom: 2px solid #ccc;
+    }
+
+    .token-display {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      width: 100%;
+      flex: 1;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .token-card {
+      width: 90%;
+      max-width: 600px;
+      padding: 40px;
+      font-size: 48px;
+      font-weight: bold;
+      text-align: center;
+      border-radius: 16px;
+      background: #e0f7fa;
+      border: 2px solid #ccc;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.3s ease;
+    }
+
+    .token-card.called {
+      background-color: #c8e6c9;
+      border-color: #4caf50;
+    }
+
+    .token-card.served {
+      background-color: #eeeeee;
+      border-color: #bbb;
+    }
+
+    @keyframes blinkGreenYellow {
+      0%, 100% { background-color: #4caf50; color: black; }
+      50% { background-color: #ffeb3b; color: black; }
+    }
+
+    .blink {
+      animation: blinkGreenYellow 1s ease-in-out 15;
+      animation-fill-mode: forwards;
+    }
+  </style>
+</head>
+<body>
+  <div class="date-display" id="dateDisplay"></div>
+
+  <div class="token-display" id="tokenDisplay"></div>
+
+  <audio id="dingSound" src="assets/ding.mp3" preload="auto"></audio>
+
+  <script>
+    const tokenDisplay = document.getElementById('tokenDisplay');
+    const dingSound = document.getElementById('dingSound');
+    const dateDisplay = document.getElementById('dateDisplay');
+    const MAX_TOKENS = 8;
+    const DISPLAY_DURATION = 300; // 5 minutes
+    const seenBlinkTokens = new Map();
+
+    function createTokenElement(client, shouldBlink) {
+      const div = document.createElement('div');
+      div.className = `token-card ${client.status}`;
+      div.innerHTML = `${client.token}<br><small>${client.room}</small>`;
+
+      if (shouldBlink) {
+        div.classList.add('blink');
+        setTimeout(() => div.classList.remove('blink'), 45000); // 15 seconds blink
+      }
+
+      return div;
+    }
+
+    async function loadTokens() {
+      try {
+        const res = await fetch('php/get_clients.php');
+        const data = await res.json();
+        const now = Math.floor(Date.now() / 1000);
+
+        const visibleTokens = data.filter(client => {
+          if (client.status === 'called') {
+            const age = now - (client.called_at || 0);
+            return age < DISPLAY_DURATION;
+          }
+          return client.status === 'served';
+        });
+
+        // Sort: called (newest first), then served (newest first)
+        visibleTokens.sort((a, b) => {
+          const getTime = c => c.called_at || 0;
+          if (a.status === b.status) {
+            return getTime(b) - getTime(a);
+          }
+          return a.status === 'called' ? -1 : 1;
+        });
+
+        const tokensToShow = visibleTokens.slice(0, MAX_TOKENS);
+        tokenDisplay.innerHTML = '';
+
+        tokensToShow.forEach(client => {
+          const key = `${client.token}_${client.room}`;
+          const currentCalledAt = client.called_at || 0;
+          const isNewCall = client.status === 'called' && seenBlinkTokens.get(key) !== currentCalledAt;
+
+          if (isNewCall) {
+            seenBlinkTokens.set(key, currentCalledAt);
+            dingSound.play();
+          }
+
+          const tokenEl = createTokenElement(client, isNewCall);
+          tokenDisplay.appendChild(tokenEl);
+        });
+
+        // Optional cleanup
+        if (seenBlinkTokens.size > 200) {
+          seenBlinkTokens.clear();
+        }
+
+      } catch (err) {
+        console.error('Fetch error:', err);
+      }
+    }
+
+    function updateDateTime() {
+      const now = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      const dateStr = now.toLocaleDateString('en-US', options);
+
+      let hours = now.getHours();
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12; // 0 should be 12
+
+      const timeStr = `${hours}:${minutes} ${ampm}`;
+      dateDisplay.textContent = `${dateStr} | ${timeStr}`;
+    }
+
+    function checkPassword() {
+      const page = location.pathname.split('/').pop();
+      fetch('../data/passwords.json')
+        .then(res => res.json())
+        .then(data => {
+          const correct = data[page];
+          const entered = prompt("Enter the password for this page:");
+          if (entered !== correct) {
+            alert("Incorrect password.");
+            location.href = 'index.html';
+          } else {
+            document.body.style.display = 'flex';
+          }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      checkPassword();
+      updateDateTime();
+      loadTokens();
+      setInterval(loadTokens, 3000);
+      setInterval(updateDateTime, 1000); // update date and time every second
+    });
+  </script>
+</body>
+</html>

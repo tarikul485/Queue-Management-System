@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reception</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body {
+      background: #f4f6f8;
+      font-family: 'Segoe UI', sans-serif;
+      display: none;
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 0;
+      padding-top: 20px;
+      font-size: 36px;
+      color: #2c3e50;
+    }
+
+    .container {
+      display: flex;
+      max-width: 1100px;
+      margin: 30px auto;
+      gap: 20px;
+      padding: 20px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .left, .right {
+      flex: 1;
+    }
+
+    .left {
+      max-height: 500px;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+
+    .right {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    h3, h4 {
+      margin-bottom: 10px;
+      color: #34495e;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    input, select {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button[type="submit"] {
+      background-color: #27ae60;
+      color: white;
+    }
+
+    button[type="submit"]:hover {
+      background-color: #219150;
+    }
+
+    .reset-btn {
+      background-color: #e74c3c;
+      color: white;
+      margin-top: 15px;
+    }
+
+    .reset-btn:hover {
+      background-color: #c0392b;
+    }
+
+    .reset-success {
+      background-color: #28a745;
+      color: white;
+      padding: 10px;
+      margin: 15px auto;
+      border-radius: 8px;
+      display: none;
+      max-width: 800px;
+      text-align: center;
+    }
+
+    .client-box div {
+      background: #ecf0f1;
+      padding: 10px;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+
+    .guichet-tag {
+      font-weight: bold;
+      padding: 2px 8px;
+      border-radius: 6px;
+      color: white;
+      margin-left: 5px;
+    }
+
+    .stats-box {
+      margin-top: 20px;
+    }
+
+    .stats-box div {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Reception</h1>
+
+  <div class="reset-success" id="resetMessage">✅ All tokens reset successfully.</div>
+
+  <div class="container">
+    <!-- Left Side -->
+    <div class="left">
+      <h3>📋 Live Queue</h3>
+      <div class="client-box" id="clientList"></div>
+    </div>
+
+    <!-- Right Side -->
+    <div class="right">
+      <div>
+        <h3>➕ Add New Client</h3>
+        <form onsubmit="addClient(event)">
+          <input type="text" id="name" placeholder="Name" required />
+          <input type="text" id="service" placeholder="Service" required />
+          <select id="room">
+            <option>Ubaydullah koyes</option>
+            <option>Guichet 2</option>
+            <option>Guichet 3</option>
+            <option>Guichet 4</option>
+            <option>Guichet 5</option>
+            <option>Guichet 6</option>
+            <option>Guichet 7</option>
+            <option>Guichet 8</option>
+            <option>Guichet 9</option>
+            <option>Guichet 10</option>
+          </select>
+          <input type="text" id="token" placeholder="Token (auto)" readonly />
+          <button type="submit">Add Client</button>
+        </form>
+
+        <div class="stats-box">
+          <h4>📊 Global Stats</h4>
+          <div id="totalClients"></div>
+          <div id="servedClients" style="color: #e74c3c;"></div>
+          <div id="waitingClients" style="color: #2ecc71;"></div>
+
+          <h4 style="margin-top: 15px;">🏷️ Guichet Stats</h4>
+          <div id="guichetStats"></div>
+        </div>
+      </div>
+      <button class="reset-btn" onclick="resetAll()">🗑️ Reset All Tokens</button>
+    </div>
+  </div>
+
+  <script>
+    function checkPassword() {
+      const page = window.location.pathname.split('/').pop();
+      fetch('../data/passwords.json')
+        .then(res => res.json())
+        .then(data => {
+          const expectedPassword = data[page];
+          const userPassword = prompt("Enter the password for this page:");
+          if (userPassword === expectedPassword) {
+            document.body.style.display = 'block';
+          } else {
+            alert("Incorrect password. Access denied.");
+            window.location.href = 'index.html';
+          }
+        });
+    }
+
+    let queueData = [];
+
+    function generateToken() {
+      const sequence = (queueData.length + 1).toString().padStart(3, '0');
+      return sequence;
+    }
+    
+
+    function loadClients() {
+      fetch('php/get_clients.php')
+        .then(res => res.json())
+        .then(data => {
+          queueData = data;
+          document.getElementById('token').value = generateToken();
+          const list = document.getElementById('clientList');
+          list.innerHTML = '';
+
+          const colorMap = {
+            "Ubaydullah koyes": "#e74c3c",
+            "Guichet 2": "#3498db",
+            "Guichet 3": "#2ecc71",
+            "Guichet 4": "#9b59b6",
+            "Guichet 5": "#f39c12",
+            "Guichet 6": "#1abc9c",
+            "Guichet 7": "#e67e22",
+            "Guichet 8": "#16a085",
+            "Guichet 9": "#c0392b",
+            "Guichet 10": "#34495e"
+          };
+
+          data.slice().reverse().forEach(client => {
+            const div = document.createElement('div');
+            const roomColor = colorMap[client.room] || "#333";
+            div.innerHTML = `
+              <strong>${client.token}</strong> – 
+              ${client.name} – 
+              ${client.service} – 
+              <span class="guichet-tag" style="background-color:${roomColor}">${client.room}</span>`;
+            list.appendChild(div);
+          });
+
+          // Global Stats
+          const totalClients = data.length;
+          const servedClients = data.filter(c => c.status === 'served').length;
+          const waitingClients = totalClients - servedClients;
+
+          document.getElementById('totalClients').innerText = `Total Clients: ${totalClients}`;
+          document.getElementById('servedClients').innerText = `Served Clients: ${servedClients}`;
+          document.getElementById('waitingClients').innerText = `Waiting Clients: ${waitingClients}`;
+
+          // Per-Guichet Stats
+          const roomStats = {};
+          data.forEach(client => {
+            if (!roomStats[client.room]) {
+              roomStats[client.room] = { total: 0, served: 0 };
+            }
+            roomStats[client.room].total++;
+            if (client.status === 'served') {
+              roomStats[client.room].served++;
+            }
+          });
+
+          const guichetStats = document.getElementById('guichetStats');
+          guichetStats.innerHTML = '';
+          for (const room in roomStats) {
+            const color = colorMap[room] || '#555';
+            const { served, total } = roomStats[room];
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="guichet-tag" style="background-color:${color}">${room}</span> – ${served}/${total} served`;
+            guichetStats.appendChild(div);
+          }
+        });
+    }
+
+    function addClient(e) {
+      e.preventDefault();
+      const name = document.getElementById('name').value;
+      const service = document.getElementById('service').value;
+      const room = document.getElementById('room').value;
+      const token = document.getElementById('token').value;
+
+      fetch('php/add_client.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, service, room, token })
+      })
+      .then(res => res.text())
+      .then(() => {
+        document.querySelector('form').reset();
+        loadClients();
+        printToken(token);
+      });
+    }
+
+    function resetAll() {
+      if (confirm("Are you sure you want to reset ALL token data?")) {
+        fetch('php/reset.php')
+          .then(res => res.text())
+          .then(() => {
+            document.getElementById('resetMessage').style.display = 'block';
+            loadClients();
+            setTimeout(() => {
+              document.getElementById('resetMessage').style.display = 'none';
+            }, 4000);
+          });
+      }
+    }
+    
+    
+function printToken(token) {
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    const today = new Date();
+    const fullDateTime = today.toLocaleDateString() + ' ' + today.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    printWindow.document.write(`
+      <html>
+      <head>
+        <style>
+          @media print {
+            @page {
+              size: 100mm 100mm;
+              margin: 0;
+            }
+            body, html {
+              width: 100mm;
+              height: 100mm;
+              margin: 0;
+              padding: 0;
+              overflow: hidden;
+              font-family: 'Segoe UI', sans-serif;
+            }
+          }
+
+          .header {
+            text-align: center;
+            padding-top: 4mm;
+          }
+
+          .company-name {
+            font-size: 20px;
+            font-weight: bold;
+          }
+
+          .company-details {
+            font-size: 14px;
+            margin-top: 2mm;
+            line-height: 1.4;
+          }
+
+          .phone {
+            font-size: 15px;
+            font-weight: bold;
+            margin-top: 2mm;
+          }
+
+          .token {
+            margin-top: 8mm;
+            font-size: 66px;
+            font-weight: bold;
+            text-align: center;
+          }
+
+          .date {
+            position: absolute;
+            bottom: 8mm;
+            width: 100%;
+            text-align: center;
+            font-size: 15px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="company-name">Aisa Pro</div>
+          <div class="company-details">
+            99 Av. Paul Vaillant Couturier,<br>
+            93120 La Courneuve
+          </div>
+          <div class="phone">☎ 0695808540</div>
+        </div>
+        <div class="token">${token}</div>
+        <div class="date">${fullDateTime}</div>
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 300);
+  }
+}
+
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      checkPassword();
+      setInterval(loadClients, 5000);
+    });
+  </script>
+</body>
+</html>

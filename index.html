@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AISA PRO – Home</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Roboto', sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 3rem;
+      margin: 40px 0 20px;
+      color: #2c3e50;
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    .page-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      max-width: 800px;
+      width: 90%;
+      padding: 20px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      animation: slideUp 0.8s ease;
+    }
+
+    .page-list a {
+      display: block;
+      padding: 15px;
+      background: #3498db;
+      color: white;
+      text-align: center;
+      text-decoration: none;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+    }
+
+    .page-list a:hover {
+      background: #2c80b4;
+      transform: scale(1.05);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 500px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      .page-list {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>AISA PRO</h1>
+
+  <div class="page-list">
+    <a href="reception.html">Reception</a>
+    <a href="Ubaydullahkoyes.html">Ubaydullah koyes</a>
+    <a href="guichet2.html">Guichet 2</a>
+    <a href="guichet3.html">Guichet 3</a>
+    <a href="guichet4.html">Guichet 4</a>
+    <a href="guichet5.html">Guichet 5</a>
+    <a href="guichet6.html">Guichet 6</a>
+    <a href="guichet7.html">Guichet 7</a>
+    <a href="guichet8.html">Guichet 8</a>
+    <a href="guichet9.html">Guichet 9</a>
+    <a href="guichet10.html">Guichet 10</a>
+    <a href="admin.html">Admin Panel</a>
+    <a href="display.html">📺 Display Screen</a>
+  </div>
+</body>
+</html>

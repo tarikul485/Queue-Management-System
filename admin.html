@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #eef2f7;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 36px;
+      color: #2c3e50;
+    }
+
+    .main-container {
+      display: flex;
+      width: 100%;
+      max-width: 1300px;
+      margin: 0 auto;
+      gap: 20px;
+    }
+
+    #clientList {
+      flex: 1.5;
+      max-height: 600px;
+      overflow-y: auto;
+      padding: 20px;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .stats-panel {
+      flex: 1;
+      padding: 20px;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .client-card {
+      background: #f0f9ff;
+      padding: 15px;
+      margin: 15px 0;
+      border: 2px solid #7ed6df;
+      border-radius: 10px;
+      transition: transform 0.2s;
+    }
+
+    .client-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .called {
+      background-color: #d4edda;
+      border-color: #28a745;
+    }
+
+    .served {
+      background-color: #ffe6e6;
+      border-color: #dc3545;
+    }
+
+    .input-sm, select {
+      width: 120px;
+      padding: 5px;
+      margin: 5px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    button {
+      padding: 6px 10px;
+      margin: 5px;
+      background: #3498db;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #2980b9;
+    }
+
+    .next-button {
+      display: block;
+      margin: 30px auto;
+      padding: 10px 20px;
+      font-size: 20px;
+      background: #2ecc71;
+    }
+
+    .next-button:hover {
+      background: #27ae60;
+    }
+
+    hr {
+      margin: 60px 0 30px 0;
+      border: 1px solid #ccc;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 28px;
+      color: #34495e;
+    }
+
+    #passwordPanel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #passwordPanel div {
+      background: #f0f9ff;
+      margin: 10px 0;
+      padding: 10px 15px;
+      border: 2px solid #7ed6df;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    #passwordPanel input {
+      margin-left: 10px;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      width: 200px;
+    }
+
+    .save-btn {
+      background: #e67e22;
+      margin-top: 20px;
+    }
+
+    .save-btn:hover {
+      background: #d35400;
+    }
+
+    /* New added to hide buttons */
+    .hide-button {
+      display: none;
+    }
+  </style>
+</head>
+<body style="display:none;">
+  <h1>Admin & Service Room</h1>
+  <div class="main-container">
+    <div id="clientList"></div>
+    <div class="stats-panel" id="stats"></div>
+  </div>
+
+  <!-- Hidden Next Client button -->
+  <button class="next-button hide-button" onclick="callNext()">➔ Next Client</button>
+
+  <hr />
+
+  <h2>🔐 Manage Page Passwords</h2>
+  <div id="passwordPanel"></div>
+  <button class="save-btn" onclick="savePasswords()">💾 Save Passwords</button>
+
+  <audio id="dingSound" src="assets/ding.mp3" preload="auto"></audio>
+
+  <script>
+    const roomMap = {
+      'Ubaydullah koyes': '#ff5733', 'Guichet 2': '#33c1ff', 'Guichet 3': '#a833ff',
+      'Guichet 4': '#33ff57', 'Guichet 5': '#ffc133', 'Guichet 6': '#33fff5',
+      'Guichet 7': '#f533ff', 'Guichet 8': '#3385ff', 'Guichet 9': '#85ff33',
+      'Guichet 10': '#ff3333'
+    };
+
+    function loadClients() {
+      fetch('php/get_clients.php')
+        .then(res => res.json())
+        .then(data => {
+          const list = document.getElementById('clientList');
+          list.innerHTML = '';
+
+          data.forEach(client => {
+            const card = document.createElement('div');
+            card.classList.add('client-card');
+            if (client.status === 'called') card.classList.add('called');
+            if (client.status === 'served') card.classList.add('served');
+
+            card.innerHTML = `
+              <strong>${client.token}</strong><br>
+              <input class="input-sm" value="${client.name}" onchange="editToken('${client.token}', 'name', this.value)" />
+              <input class="input-sm" value="${client.service}" onchange="editToken('${client.token}', 'service', this.value)" />
+              <select onchange="editToken('${client.token}', 'room', this.value)">
+                ${Object.keys(roomMap).map(room => `<option ${client.room === room ? 'selected' : ''}>${room}</option>`).join('')}
+              </select>
+              <button class="hide-button" onclick="callToken('${client.token}')">📞 Call</button>
+              <button class="hide-button" onclick="printToken('${client.token}')">🖨️ Print</button>
+            `;
+            list.appendChild(card);
+          });
+
+          updateStats(data);
+        });
+    }
+
+    function updateStats(clients) {
+      const stats = document.getElementById('stats');
+      stats.innerHTML = '';
+
+      const total = clients.length;
+      const served = clients.filter(c => c.status === 'served').length;
+      const waiting = clients.filter(c => c.status === 'waiting').length;
+
+      stats.innerHTML += `<h3>Total Clients: ${total}</h3>`;
+      stats.innerHTML += `<h3 style="color:red">Served Clients: ${served}</h3>`;
+      stats.innerHTML += `<h3 style="color:green">Waiting Clients: ${waiting}</h3><hr />`;
+
+      Object.entries(roomMap).forEach(([room, color]) => {
+        const roomClients = clients.filter(c => c.room === room);
+        const servedClients = roomClients.filter(c => c.status === 'served');
+
+        stats.innerHTML += `
+          <div><span style="color:${color}"><strong>${room}</strong></span>: 
+          ${servedClients.length}/${roomClients.length} served</div>
+        `;
+      });
+    }
+
+    function callToken(token) {
+      fetch('php/call_token.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      }).then(() => {
+        document.getElementById('dingSound').play();
+        markPreviousTokenAsServed(token);
+        loadClients();
+        const event = new Event('tokenCalled');
+        window.dispatchEvent(event);
+      });
+    }
+
+    function markPreviousTokenAsServed(currentToken) {
+      fetch('php/get_clients.php')
+        .then(res => res.json())
+        .then(data => {
+          data.forEach(client => {
+            if (client.status === 'called' && client.token !== currentToken) {
+              fetch('php/update_token.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: client.token, field: 'status', value: 'served' })
+              });
+            }
+          });
+        });
+    }
+
+    function editToken(token, field, value) {
+      fetch('php/update_token.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, field, value })
+      }).then(() => loadClients());
+    }
+
+    function callNext() {
+      fetch('php/get_clients.php')
+        .then(res => res.json())
+        .then(data => {
+          const waiting = data.find(client => client.status === 'waiting');
+          if (waiting) callToken(waiting.token);
+        });
+    }
+
+    function printToken(token) {
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`<html><body style="font-size: 24px; text-align: center;"><h1>${token}</h1></body></html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+
+    let passwordsData = {};
+
+    function loadPasswords() {
+      fetch('../data/passwords.json?cache=' + new Date().getTime())
+        .then(res => res.json())
+        .then(data => {
+          passwordsData = data;
+          const panel = document.getElementById('passwordPanel');
+          panel.innerHTML = '';
+          Object.entries(data).forEach(([page, pwd]) => {
+            panel.innerHTML += `
+              <div>
+                <strong>${page}:</strong>
+                <input value="${pwd}" onchange="passwordsData['${page}'] = this.value" />
+              </div>
+            `;
+          });
+        });
+    }
+
+    function savePasswords() {
+      fetch('php/save_passwords.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(passwordsData)
+      })
+      .then(res => res.text())
+      .then(msg => {
+        alert('Passwords updated!');
+        loadPasswords();
+      })
+      .catch(err => {
+        console.error('Save failed:', err);
+        alert('Error saving passwords');
+      });
+    }
+
+    function checkPassword() {
+      const page = window.location.pathname.split('/').pop();
+      fetch(`../data/passwords.json?cache=${new Date().getTime()}`)
+        .then(res => res.json())
+        .then(data => {
+          const expectedPassword = data[page];
+          const userPassword = prompt("Enter the password for this page:");
+          if (userPassword === expectedPassword) {
+            document.body.style.display = 'block';
+          } else {
+            alert("Incorrect password. Access denied.");
+            window.location.href = 'index.html';
+          }
+        })
+        .catch(error => {
+          alert("Failed to load password. Check the console.");
+          console.error("Password fetch error:", error);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      checkPassword();
+      loadClients();
+      loadPasswords();
+      setInterval(loadClients, 5000);
+    });
+  </script>
+</body>
+</html>
